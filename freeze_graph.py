@@ -177,6 +177,7 @@ def freeze_graph_with_def_protos(input_graph_def,
         var_list[key] = tensor
 
       try:
+        print(var_list)
         saver = saver_lib.Saver(
             var_list=var_list, write_version=checkpoint_version)
       except TypeError as e:

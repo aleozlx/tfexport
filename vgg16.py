@@ -1,10 +1,11 @@
 from pathlib import Path
 import tensorflow as tf
-import freeze_graph
+from tensorflow.python.framework import graph_util
+# import freeze_graph
 tf.keras.backend.clear_session()
 
 with tf.variable_scope('DataSource'):
-    images = tf.placeholder(tf.uint8, (1,256,256,3), 'input')
+    images = tf.placeholder(tf.uint8, (1,256,256,3))
     images = tf.image.per_image_standardization(images)
 
 with tf.variable_scope('DCNN'):
@@ -26,13 +27,22 @@ with tf.Session() as sess:
     saver = tf.train.Saver(tf.trainable_variables())
     saver.save(sess, str(OUTPUT / FNAME))
 
-freeze_graph.freeze_graph(
-    str(OUTPUT / f'{FNAME}.pb'), input_saver="", input_binary=True,
-    input_checkpoint=str(OUTPUT / f'{FNAME}'),
-    output_node_names='DCNN/block5_pool/MaxPool',
-    initializer_nodes='',
-    restore_op_name='', # Unused
-    filename_tensor_name='', # Unused
-    output_graph=str(OUTPUT / f'{FNAME}-frozen.pb'),
-    clear_devices=True
-)
+    outgraph_def = graph_util.convert_variables_to_constants(
+        sess, sess.graph_def,
+        'DCNN/block5_pool/MaxPool'.replace(" ", "").split(","),
+        # variable_names_whitelist=variable_names_whitelist,
+        # variable_names_blacklist=variable_names_blacklist
+    )
+    tf.io.write_graph(outgraph_def, str(OUTPUT), f'{FNAME}.frozen.pb', as_text=False)
+
+# freeze_graph.freeze_graph(
+#     str(OUTPUT / f'{FNAME}.pb'), input_saver="", input_binary=True,
+#     input_checkpoint=str(OUTPUT / f'{FNAME}'),
+#     output_node_names='DCNN/block5_pool/MaxPool',
+#     # input_saved_model_dir=str(OUTPUT), #
+#     initializer_nodes='',
+#     restore_op_name='', # Unused
+#     filename_tensor_name='', # Unused
+#     output_graph=str(OUTPUT / f'{FNAME}-frozen.pb'),
+#     clear_devices=False
+# )
