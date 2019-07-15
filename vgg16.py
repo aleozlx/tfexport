@@ -1,7 +1,6 @@
 from pathlib import Path
 import tensorflow as tf
 from tensorflow.python.framework import graph_util
-# import freeze_graph
 tf.keras.backend.clear_session()
 
 with tf.variable_scope('DataSource'):
@@ -34,15 +33,3 @@ with tf.Session() as sess:
         # variable_names_blacklist=variable_names_blacklist
     )
     tf.io.write_graph(outgraph_def, str(OUTPUT), f'{FNAME}.frozen.pb', as_text=False)
-
-# freeze_graph.freeze_graph(
-#     str(OUTPUT / f'{FNAME}.pb'), input_saver="", input_binary=True,
-#     input_checkpoint=str(OUTPUT / f'{FNAME}'),
-#     output_node_names='DCNN/block5_pool/MaxPool',
-#     # input_saved_model_dir=str(OUTPUT), #
-#     initializer_nodes='',
-#     restore_op_name='', # Unused
-#     filename_tensor_name='', # Unused
-#     output_graph=str(OUTPUT / f'{FNAME}-frozen.pb'),
-#     clear_devices=False
-# )
