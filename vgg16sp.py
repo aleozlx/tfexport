@@ -1,4 +1,5 @@
 from pathlib import Path
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import graph_util
 tf.keras.backend.clear_session()
@@ -43,20 +44,48 @@ with tf.Session() as sess:
     tf.keras.backend.set_session(sess)
     with tf.variable_scope('Initializer'):
         dcnn.load_weights('/tank/datasets/research/model_weights/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5')
+
+    ##############
+    # For verification
+    ##############
+    test_input = (np.random.rand(1, 256, 256, 3) * 256).astype(np.uint8)
+    test_superpixel = (np.random.rand(1, 256, 256) * 300).astype(np.int32)
+    true_output = sess.run(feat_sp, feed_dict={
+        "DataSource/input_image:0": test_input,
+        "DataSource/input_superpixels:0": test_superpixel
+    })
+
+    ##############
+    # Exporting
+    ##############
     tf.io.write_graph(sess.graph_def, str(OUTPUT), f'{FNAME}.pbtxt', as_text=True)
-    tf.io.write_graph(sess.graph_def, str(OUTPUT), f'{FNAME}.pb', as_text=False)
-    saver = tf.train.Saver(tf.trainable_variables())
-    saver.save(sess, str(OUTPUT / FNAME))
+    # tf.io.write_graph(sess.graph_def, str(OUTPUT), f'{FNAME}.pb', as_text=False)
+    # saver = tf.train.Saver(tf.trainable_variables())
+    # saver.save(sess, str(OUTPUT / FNAME))
 
     outgraph_def = graph_util.convert_variables_to_constants(
         sess, sess.graph_def,
-
-        # 'DCNN/block5_pool/MaxPool'.replace(" ", "").split(","),
         'Superpixels/MatMul'.replace(" ", "").split(","),
-
         # variable_names_whitelist=variable_names_whitelist,
         # variable_names_blacklist=variable_names_blacklist
     )
     tf.io.write_graph(outgraph_def, str(OUTPUT), f'{FNAME}.frozen.pb', as_text=False)
 
-    
+tf.reset_default_graph()
+with open(OUTPUT / f'{FNAME}.frozen.pb', 'rb') as f:
+    loaded_graph_def = tf.GraphDef()
+    loaded_graph_def.ParseFromString(f.read())
+
+##############
+# Verification
+##############
+with tf.Session() as sess:
+    tf.import_graph_def(loaded_graph_def, name='')
+    for node in sess.graph_def.node:
+        print(f'({node.op}) {node.name}')
+    test_output = sess.run("Superpixels/MatMul:0", feed_dict={
+        "DataSource/input_image:0": test_input,
+        "DataSource/input_superpixels:0": test_superpixel
+    })
+
+    print('err =', np.sum(true_output - test_output))
